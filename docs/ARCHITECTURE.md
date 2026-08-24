@@ -205,6 +205,90 @@ compatibility despite its larger semantic gap.
 5. XR-1 source does not declare the coordinate frame/units for its base velocity
    field, nor physical units for its joint/gripper/waist state fields.
 
+## Verified BEHAVIOR Action Representation
+
+Verification run on 2026-08-24 was intentionally metadata-first. No local
+2026 LeRobot dataset, `meta/info.json`, `meta/tasks.jsonl`, `meta/stats.json`,
+or BEHAVIOR parquet shard was found under `/home/kang` or the mounted Windows
+`C:` drive. The installed Python environment has no `omnigibson`, `torch`, or
+`lerobot` module. No package, asset, checkpoint, or dataset was installed or
+downloaded. Consequently, every item in this section is either source-backed
+or explicitly unavailable at runtime.
+
+### Demonstration Provenance
+
+**Source-backed:** `docs/challenge/dataset.md` specifies 2026 demos as a
+LeRobot v3 dataset. `OmniGibson/scripts/learning/update_lerobot_base_qvel.py`
+uses default `--action-width 23`, reads raw HDF5 `demo["action"]`, and compares
+it to the parquet `action` column within configurable tolerance. It compares
+`action[t, 0:3]` to the next frame's recovered robot-local base velocity. This
+confirms the repository's expected 23D stored action width and first-three
+base convention; it does **not** prove a per-episode controller-config record.
+
+**Actual-data verification:** NOT AVAILABLE. Feature schema, dtype, timestamp,
+task-index, episode/frame-index, skill fields, and the exact contents of a
+demo action/state row require an existing local dataset or a future
+metadata-only data-host inspection.
+
+### Offline EE Target Reconstruction
+
+`eval_utils.py::PROPRIOCEPTION_INDICES["R1Pro"]` defines the presumed 61D
+layout: base local velocity `0:3`; left arm qpos `3:10`, qvel `10:17`, EEF
+position `17:20`, EEF quaternion `20:24`, gripper qpos `24:26`, gripper qvel
+`26:28`; right equivalents qpos `28:35`, qvel `35:42`, EEF position `42:45`,
+EEF quaternion `45:49`, gripper qpos `49:51`, gripper qvel `51:53`; trunk qpos
+`53:57`, trunk qvel `57:61`.
+
+If actual `observation.state` uses this source layout, EEF pose is directly
+stored, so FK is not necessary for the arm delta target. Given current pose
+`T_t` and future pose `T_{t+i}`, local relative motion is deterministically
+computable. If the live/demo schema differs or lacks EEF pose, R1Pro assets and
+qpos could in principle support FK, but that has not been verified.
+
+### Live R1Pro IK Controller
+
+**NOT AVAILABLE:** this host has no pre-existing OmniGibson runtime or assets.
+No smoke initialization was attempted, so robot class, loaded controller order,
+controller classes/command dimensions, EEF links, IK modes, and live
+`robot.action_dim` are unverified. The 21D total remains a source-derived
+arithmetic inference only.
+
+### XR-1 → R1Pro Frame Conversion
+
+XR-1 `JsonDataset._arm_action()` creates translation
+`R_t^T(p_{t+i}-p_t)` and rotation `axis_angle(R_t^T R_{t+i})`; this is the
+local EEF convention equivalent to the relative transform
+`inverse(T_t) @ T_{t+i}`. `recover_action()` applies the inverse composition.
+
+OmniGibson IK `pose_delta_ori` instead receives translation relative to the
+robot base and composes orientation relative to the current EEF pose. Therefore
+the future adapter must transform XR-1 translation by the current EEF rotation
+into base coordinates before issuing an IK command. Its full live correctness
+is unverified until a minimal R1Pro smoke test.
+
+### Remaining Embodiment Mismatches
+
+- XR-1 waist is one relative scalar (`16:17`); R1Pro default trunk is four
+  absolute joint-position commands (`3:7`). No source-backed mapping exists.
+- XR-1 gripper is one relative scalar per hand; R1Pro smooth gripper consumes
+  one controller command that produces an absolute two-finger target. Exact
+  limits and relative-to-absolute rule require asset/runtime evidence.
+- XR-1 EE actions are local-EEF; BEHAVIOR IK commands are robot-base-relative.
+- XR-1 base velocity frame/unit is not documented in XR-1 source.
+
+### Final Action-Space Decision
+
+**Strategy B: BLOCKED.** The current source audit makes it a plausible
+candidate, but neither acceptance condition has runtime/data confirmation:
+
+1. actual demo state/action schema needed to establish deterministic target
+   reconstruction; and
+2. live R1Pro IK load/action-dimension/frame behavior.
+
+Do not implement action conversion or select Strategy B training targets until
+both checks are complete on an A100/data host. Keep Strategy A only as the
+documented source-compatible baseline, not as a conversion implementation.
+
 ## Metadata-only A100/data-host TODO
 
 1. Inspect `meta/info.json`, `meta/tasks.jsonl`, one `meta/episodes/*.jsonl`, and

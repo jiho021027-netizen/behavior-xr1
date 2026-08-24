@@ -19,9 +19,10 @@ hidden width. BEHAVIOR dimensions below refer only to the bundled R1Pro config.
 
 ## Immediate next implementation slice
 
-The current static decision favours arm IK (`pose_delta_ori`) for XR-1 native
-EE-action preservation, but only after A100 checks confirm R1Pro IK action
-dimension/link frames and metadata checks establish a valid demo-target
-reconstruction path. Start next with metadata-only inspection, then an A100
-controller smoke test. Do not choose silent truncation, padding, or arbitrary
-slicing to resolve semantic mismatches.
+Strategy B is currently **BLOCKED**, not accepted: no local 2026 metadata/data
+or OmniGibson runtime existed for this verification pass. Start next on the
+A100/data host with metadata-only inspection, then a no-rollout R1Pro
+controller smoke test. Accept arm IK (`pose_delta_ori`) only if both the
+demo-target reconstruction and runtime controller contracts verify. Do not
+choose silent truncation, padding, or arbitrary slicing to resolve semantic
+mismatches.
