@@ -1,1 +1,1 @@
-"""Dataset schemas and BEHAVIOR-to-XR-1 adapters (future milestone)."""
+"""Audited dataset schemas; conversion remains deliberately unimplemented."""

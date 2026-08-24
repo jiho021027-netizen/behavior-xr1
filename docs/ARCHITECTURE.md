@@ -83,6 +83,128 @@ BEHAVIOR R1Pro action [B, T, 23]
   language/task conditioning, but the exact fusion design remains a future
   implementation decision.
 
+## R1Pro Action-Space Decision
+
+### Default Joint-Space Path
+
+The official evaluation configuration is
+`OmniGibson/omnigibson/eval/r1pro.yaml`. It selects a velocity
+`HolonomicBaseJointController`, position `JointController`s for trunk and both
+arms, and smooth `MultiFingerGripperController`s. It explicitly sets
+`action_normalize: false`. The official R1Pro slice table is
+`OmniGibson/omnigibson/eval/utils/eval_utils.py::ACTION_QPOS_INDICES`:
+
+| Slice | Controller command | Confirmed semantics |
+|---|---|---|
+| `0:3` | base | `[vx, vy, wz]`, robot-local; controller is velocity mode. `HolonomicBaseJointController._update_goal()` rotates planar velocity into canonical coordinates internally. YAML input limits are `[-1,1]`; output limits are `[-.75,-.75,-1]` to `[.75,.75,1]`. |
+| `3:7` | torso/trunk | Four position `JointController` commands, `use_delta_commands: false`; input/output limits are `null`, so they are direct controller commands when normalization is disabled. |
+| `7:14` | left arm | Seven position `JointController` commands, `use_delta_commands: false`; input/output limits are `null`, so direct absolute joint targets. |
+| `14:15` | left gripper | One `mode: smooth` MultiFinger command; it is broadcast to both controlled finger joints. The exact converted position range depends on R1Pro asset joint limits. |
+| `15:22` | right arm | Same seven direct absolute joint-target commands. |
+| `22:23` | right gripper | Same one smooth broadcast gripper command. |
+
+`Robot.action_dim` is the sum of each loaded controller's `command_dim`
+(`robots/robot.py::action_dim`); input slices are emitted in
+`controller_order` (`Robot.apply_action`). `JointController.command_dim` is
+`len(dof_idx)` and smooth gripper `command_dim` is one. The generic robot
+definition supplying the literal R1Pro `raw_controller_order` is asset-backed
+and not present in this source-only checkout; the above 23D order is instead
+confirmed by the official R1Pro evaluation slice table.
+
+If `action_normalize=True`, `Robot._load_controllers()` overwrites every
+controller input limit with `"default"`, i.e. `[-1,1]`. `BaseController` clips
+and linearly maps input to output only when *both* limits are set. This does
+not make the joint controller a delta controller: with the evaluator YAML its
+output limit remains `null`, so an arm/trunk command remains a direct absolute
+joint target numerically restricted to `[-1,1]`.
+
+### IK / EE-Space Path
+
+`InverseKinematicsController` is source-supported for every manipulation arm:
+`Robot._default_arm_ik_controller_configs` builds one for each `arm_names`
+entry with mode `pose_delta_ori`; config resolution permits selecting it by
+name. This is evidence of framework/R1Pro configuration support, but an actual
+R1Pro instantiation remains an A100 simulator-host check.
+
+`controllers/ik_controller.py::IK_MODE_COMMAND_DIMS` gives `pose_delta_ori`
+six commands per arm: local-base-frame `[dx,dy,dz,dax,day,daz]`. `_update_goal`
+adds translation to the current EEF pose relative to robot base and composes
+axis-angle rotation with its current orientation. Generic default arm IK output
+limits are translation ±0.2 and axis-angle ±0.5; default input limits are
+`[-1,1]`, so linear scaling applies even when the evaluator's
+`action_normalize` remains false. The controller applies IK to produce joint
+position targets.
+
+Keeping base (3), trunk (4), and smooth grippers (1+1), then replacing both
+7D joint arm controllers with 6D IK controllers, yields **21D**:
+`3 + 4 + 6 + 1 + 6 + 1`. This total is a source-backed arithmetic consequence,
+not a simulator-instantiated `robot.action_dim`; record it as an inference
+until A100 validation.
+
+### XR-1 Native Representation
+
+`xr1/mibot/utils/io.py::ACTION_PARTS`, `JsonDataset._arm_action()`, and
+`recover_action()` define XR-1's native 30×60 action horizon. Occupied slots
+are left EE local translation delta `0:3`, local axis-angle delta `3:6`,
+gripper delta `6:7`; right equivalents `8:11`, `11:14`, `14:15`; waist delta
+`16:17`; base velocity `17:20`. Slots `7`, `15`, and `20:60` are zero-filled
+and excluded by `build_action_mask()`. Arm delta construction rotates world
+target displacement by the current EEF rotation transpose; recovery rotates it
+back. Therefore XR-1's arm action is EEF-local, whereas OmniGibson IK position
+commands are documented relative to the **robot base**. An EEF-to-base frame
+transform is required even with IK.
+
+`compose_state()` writes left joint `0:7`, left gripper `7`, right joint
+`8:15`, right gripper `15`; it zero-pads `16:60`. State q01/q99 quantile
+normalization maps valid dimensions to `[-1,1]`; action uses per-horizon-step
+mean/std normalization. Exact physical units are not declared in upstream
+XR-1 data-format documentation, so they are not assumed here.
+
+### Recommended Path
+
+**Recommended conditional direction: Strategy B, R1Pro arms configured as
+`InverseKinematicsController(mode="pose_delta_ori")`, while retaining default
+base/trunk/grippers.** It is closer to XR-1's six-DoF relative EE actions and
+eliminates runtime EE-to-joint IK in the policy adapter. It is not a direct
+identity: XR-1 is EEF-local while OmniGibson IK deltas are robot-base-relative,
+and gripper/waist/controller scaling remain different.
+
+This recommendation is conditional because released 2026 demonstrations have
+strong repository evidence for width-23 action records, consistent with the
+default joint-controller interface. An IK evaluation policy will need a
+training-target reconstruction decision and A100 simulator verification. If
+that reconstruction is not validated, retain Strategy A for data/evaluation
+compatibility despite its larger semantic gap.
+
+| Property | Strategy A: default joints | Strategy B: arm IK |
+|---|---|---|
+| Evaluator output | 23D official default | inferred 21D custom robot config |
+| Direct XR-1 overlap | base velocity only; gripper/waist only semantically partial | base velocity plus 6D EE delta structure per arm |
+| Separate kinematics | XR-1 EEF actions must be converted to joint targets | controller performs IK; adapter still transforms EEF-local → base frame |
+| Normalization | controller-specific; arms/trunk direct with config's null limits | IK `[-1,1]` → ±0.2 m/±0.5 rad default limits; others unchanged |
+| Demo compatibility | strongest: 23D raw/parquet action tooling | unknown: demos are not confirmed as IK commands |
+| Evaluation compatibility | official bundled config | permitted custom config, must submit it |
+| Complexity / loss | lower runtime complexity but joint/EE semantic mismatch | lower action-semantic mismatch; reconstruction and frame/scaling work needed |
+
+### Remaining Unknowns
+
+1. The exact R1Pro asset definition's `raw_controller_order`, joint names,
+   limits, and EEF link transforms are unavailable without simulator assets.
+2. A live R1Pro IK load must confirm each controller's link name and total 21D
+   `robot.action_dim`.
+3. 2026 LeRobot metadata/parquet must establish all action columns' controller
+   provenance and units. `update_lerobot_base_qvel.py` defaults to action width
+   23 and compares raw HDF5 action with parquet within a configured tolerance;
+   it is strong evidence of 23D action
+   storage and base `action[t]` correspondence, but not an episode-level
+   controller-config manifest.
+4. Deterministic reconstruction of IK targets from demos is unconfirmed. The
+   61D proprio state contains EEF positions/quaternions and arm joint values,
+   but dataset frame alignment, future-target availability, and controller
+   scaling must be inspected from small metadata/data samples on the A100 host.
+5. XR-1 source does not declare the coordinate frame/units for its base velocity
+   field, nor physical units for its joint/gripper/waist state fields.
+
 ## Metadata-only A100/data-host TODO
 
 1. Inspect `meta/info.json`, `meta/tasks.jsonl`, one `meta/episodes/*.jsonl`, and

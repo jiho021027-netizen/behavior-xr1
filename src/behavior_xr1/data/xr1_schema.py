@@ -1,0 +1,11 @@
+"""XR-1 audited schema exports."""
+
+from .schema import XR1_ACTION_COMPONENTS, XR1_ACTION_DIM, XR1_ACTION_HORIZON, XR1_STATE_COMPONENTS, XR1_STATE_DIM
+
+__all__ = [
+    "XR1_ACTION_COMPONENTS",
+    "XR1_ACTION_DIM",
+    "XR1_ACTION_HORIZON",
+    "XR1_STATE_COMPONENTS",
+    "XR1_STATE_DIM",
+]

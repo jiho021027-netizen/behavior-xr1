@@ -6,7 +6,7 @@ hidden width. BEHAVIOR dimensions below refer only to the bundled R1Pro config.
 
 | # | Milestone | Planned changes / new files | Inputs → outputs | Test | A100? |
 |---:|---|---|---|---|---|
-| 1 | BEHAVIOR ↔ XR-1 interface | New `data/observation.py`, `state.py`, `action.py`, `schemas.py`; update configs/docs. Keep upstream untouched. | camera dict + `[B,61]` + `[B,T,23]` ↔ Qwen messages + `[B,1,60]` + `[B,30,60]`, with masks | CPU synthetic ordering, round-trip for lossless fields, failure tests for unknown keys/shapes; simulator contract smoke test | No for unit tests; yes for final controller verification |
+| 1 | BEHAVIOR ↔ XR-1 interface | Current: audited immutable layouts in `data/schema.py`, fail-safe adapter interfaces in `adapters/contracts.py`. Future: `data/observation.py`, state/action packers only after semantic decision. Keep upstream untouched. | camera dict + `[B,61]` + default `[B,T,23]` (or unverified IK `[B,T,21]`) ↔ Qwen messages + `[B,1,60]` + `[B,30,60]` | Current CPU layout/non-overlap/NotImplemented tests; later frame/scale and simulator-controller contract smoke test | No for current tests; yes for controller verification |
 | 2 | Baseline forward path | New `models/baseline.py`, `data/collate.py`; thin composition around vendor-compatible XR-1 APIs | adapted Qwen tensors, state `[B,1,60]` → action chunk `[B,30,60]` → R1Pro `[B,K,23]` | mock VLM/DiT CPU shape test; never initialize Qwen locally | Yes for real model |
 | 3 | 100 task ID plumbing | New `data/tasks.py`, generated small `configs/tasks.json`; update collate/schema | canonical string ID / dataset task index → stable `[B]` integer ID and language text | validate uniqueness/cardinality=100 and mapping round-trip against pinned `task_data.json` | No; dataset mapping confirmation needs data host |
 | 4 | Hybrid language-task conditioning | New `models/task_conditioning.py`; minimal hook in future XR-1 compatibility wrapper; config fields | VLM language/vision representation `[B,S,H_vlm]` + task IDs `[B]` → fused conditioning/cache-compatible representation; DiT width 1024 where projected | tiny configurable-dimension module test; checkpoint key compatibility test | Yes for XR-1 integration |
@@ -19,8 +19,9 @@ hidden width. BEHAVIOR dimensions below refer only to the bundled R1Pro config.
 
 ## Immediate next implementation slice
 
-Implement milestone 1 only after the metadata TODOs in `ARCHITECTURE.md` are
-resolved. Start with typed schemas and strict validation; encode every field's
-source index, target slot, units, coordinate frame, normalization, mask, and
-whether conversion is reversible. Do not choose silent truncation or padding to
-resolve semantic mismatches.
+The current static decision favours arm IK (`pose_delta_ori`) for XR-1 native
+EE-action preservation, but only after A100 checks confirm R1Pro IK action
+dimension/link frames and metadata checks establish a valid demo-target
+reconstruction path. Start next with metadata-only inspection, then an A100
+controller smoke test. Do not choose silent truncation, padding, or arbitrary
+slicing to resolve semantic mismatches.

@@ -8,9 +8,9 @@ dist/
 build/
 *.egg-info/
 checkpoints/
-data/
-datasets/
-assets/
+/data/
+/datasets/
+/assets/
 outputs/
 wandb/
 *.ckpt

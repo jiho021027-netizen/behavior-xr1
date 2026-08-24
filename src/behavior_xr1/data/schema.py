@@ -1,0 +1,96 @@
+"""Immutable, source-audited action/state layouts.
+
+This module deliberately describes layouts only.  It does not convert between
+BEHAVIOR controller commands and XR-1 actions: that mapping needs a validated
+R1Pro kinematic/controller contract on the simulator host.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Iterable
+
+
+@dataclass(frozen=True)
+class Component:
+    """A half-open slice with audited semantics."""
+
+    name: str
+    start: int
+    stop: int
+    semantics: str
+    source: str
+
+    @property
+    def dimension(self) -> int:
+        return self.stop - self.start
+
+
+def validate_layout(components: Iterable[Component], expected_dim: int) -> None:
+    """Reject gaps, overlaps, and invalid slices in an explicitly complete layout."""
+    layout = tuple(components)
+    cursor = 0
+    for component in layout:
+        if component.start != cursor:
+            raise ValueError(
+                f"layout is not contiguous before {component.name}: expected {cursor}, got {component.start}"
+            )
+        if component.stop <= component.start:
+            raise ValueError(f"invalid slice for {component.name}: [{component.start}:{component.stop}]")
+        cursor = component.stop
+    if cursor != expected_dim:
+        raise ValueError(f"layout ends at {cursor}, expected {expected_dim}")
+
+
+# BEHAVIOR-1K v3.9.1: OmniGibson/omnigibson/eval/utils/eval_utils.py,
+# ACTION_QPOS_INDICES["R1Pro"]. This table is the R1Pro action-vector order
+# used by the official evaluation utilities. "torso" is called "trunk" by the
+# evaluator robot YAML/controller group.
+BEHAVIOR_DEFAULT_ACTION_DIM = 23
+BEHAVIOR_DEFAULT_ACTION_COMPONENTS = (
+    Component("base", 0, 3, "Holonomic local-frame velocity [vx, vy, wz]", "eval_utils.py::ACTION_QPOS_INDICES"),
+    Component("torso_trunk", 3, 7, "Four JointController position commands", "eval_utils.py::ACTION_QPOS_INDICES"),
+    Component("left_arm", 7, 14, "Seven JointController position commands", "eval_utils.py::ACTION_QPOS_INDICES"),
+    Component("left_gripper", 14, 15, "One smooth MultiFingerGripperController command", "eval_utils.py::ACTION_QPOS_INDICES"),
+    Component("right_arm", 15, 22, "Seven JointController position commands", "eval_utils.py::ACTION_QPOS_INDICES"),
+    Component("right_gripper", 22, 23, "One smooth MultiFingerGripperController command", "eval_utils.py::ACTION_QPOS_INDICES"),
+)
+
+
+# Xiaomi-Robotics-1 commit 556cca3: xr1/mibot/utils/io.py::compose_state.
+# The unit/frame of joint and gripper values is not declared in the upstream
+# format documentation, so it is intentionally not invented here.
+XR1_STATE_DIM = 60
+XR1_STATE_COMPONENTS = (
+    Component("left_arm_joint", 0, 7, "Up to seven source joint values; unused tail remains zero", "io.py::compose_state"),
+    Component("left_gripper", 7, 8, "One source gripper value", "io.py::compose_state"),
+    Component("right_arm_joint", 8, 15, "Up to seven source joint values; unused tail remains zero", "io.py::compose_state"),
+    Component("right_gripper", 15, 16, "One source gripper value", "io.py::compose_state"),
+    Component("reserved_zero", 16, 60, "Zero padding written by compose_state", "io.py::compose_state"),
+)
+
+
+# Xiaomi-Robotics-1 commit 556cca3: io.py::ACTION_PARTS / compose_action /
+# build_action_mask / recover_action. Translation and axis-angle deltas are in
+# the current EEF orientation frame; recover_action right-multiplies them into
+# the current EEF pose. Base is passed through as base_vel.
+XR1_ACTION_DIM = 60
+XR1_ACTION_HORIZON = 30
+XR1_ACTION_COMPONENTS = (
+    Component("left_ee_translation_delta", 0, 3, "Relative EEF translation; local current-EEF frame", "io.py::ACTION_PARTS, recover_action"),
+    Component("left_ee_axis_angle_delta", 3, 6, "Relative EEF axis-angle rotation; local current-EEF frame", "io.py::ACTION_PARTS, recover_action"),
+    Component("left_gripper_delta", 6, 7, "Relative gripper position", "io.py::ACTION_PARTS, recover_action"),
+    Component("reserved_zero", 7, 8, "Not in ACTION_PARTS; zero and action-masked", "io.py::compose_action, build_action_mask"),
+    Component("right_ee_translation_delta", 8, 11, "Relative EEF translation; local current-EEF frame", "io.py::ACTION_PARTS, recover_action"),
+    Component("right_ee_axis_angle_delta", 11, 14, "Relative EEF axis-angle rotation; local current-EEF frame", "io.py::ACTION_PARTS, recover_action"),
+    Component("right_gripper_delta", 14, 15, "Relative gripper position", "io.py::ACTION_PARTS, recover_action"),
+    Component("reserved_zero", 15, 16, "Not in ACTION_PARTS; zero and action-masked", "io.py::compose_action, build_action_mask"),
+    Component("waist_delta", 16, 17, "Relative waist position", "io.py::ACTION_PARTS, recover_action"),
+    Component("base_velocity", 17, 20, "Base velocity; frame/units not declared in XR-1 source", "io.py::ACTION_PARTS, recover_action"),
+    Component("reserved_zero", 20, 60, "Not in ACTION_PARTS; zero and action-masked", "io.py::compose_action, build_action_mask"),
+)
+
+
+validate_layout(BEHAVIOR_DEFAULT_ACTION_COMPONENTS, BEHAVIOR_DEFAULT_ACTION_DIM)
+validate_layout(XR1_STATE_COMPONENTS, XR1_STATE_DIM)
+validate_layout(XR1_ACTION_COMPONENTS, XR1_ACTION_DIM)
