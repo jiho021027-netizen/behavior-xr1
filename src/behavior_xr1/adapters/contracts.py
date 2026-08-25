@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .state import BehaviorStatePacker
+
 
 def _length(value: Any, label: str) -> int:
     try:
@@ -17,15 +19,6 @@ class BehaviorObservationAdapter:
 
     def __call__(self, observation: Any) -> Any:
         raise NotImplementedError("Observation semantics require a confirmed evaluator key contract")
-
-
-class BehaviorStatePacker:
-    """Future 61D R1Pro-proprio to XR-1-state packer; intentionally unavailable."""
-
-    def pack(self, state: Any) -> Any:
-        if _length(state, "BEHAVIOR state") != 61:
-            raise ValueError("BEHAVIOR default R1Pro state must have 61 values")
-        raise NotImplementedError("61D R1Pro proprio cannot be silently packed into XR-1 60D state")
 
 
 class XR1ActionToBehaviorAction:

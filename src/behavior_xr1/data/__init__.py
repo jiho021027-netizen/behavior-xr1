@@ -1,1 +1,1 @@
-"""Audited dataset schemas; conversion remains deliberately unimplemented."""
+"""Audited schemas and source-bounded offline preprocessing helpers."""

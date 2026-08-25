@@ -6,7 +6,7 @@ hidden width. BEHAVIOR dimensions below refer only to the bundled R1Pro config.
 
 | # | Milestone | Planned changes / new files | Inputs → outputs | Test | A100? |
 |---:|---|---|---|---|---|
-| 1 | BEHAVIOR ↔ XR-1 interface | Current: audited immutable layouts in `data/schema.py`, fail-safe adapter interfaces in `adapters/contracts.py`. Future: `data/observation.py`, state/action packers only after semantic decision. Keep upstream untouched. | camera dict + `[B,61]` + default `[B,T,23]` (or unverified IK `[B,T,21]`) ↔ Qwen messages + `[B,1,60]` + `[B,30,60]` | Current CPU layout/non-overlap/NotImplemented tests; later frame/scale and simulator-controller contract smoke test | No for current tests; yes for controller verification |
+| 1 | BEHAVIOR ↔ XR-1 interface | Current: `geometry/pose.py`, `data/target_builder.py`, and `adapters/state.py` provide NumPy-only provisional `[61]→[60]` state and target packing. Gripper uses a mandatory callback; action carries a 60D validity mask. No runtime action adapter. Future: `data/observation.py`, normalization, and controller adapter only after semantic decision. Keep upstream untouched. | camera dict + `[B,61]` → `[B,1,60]`; current/future proprio → `PackedAction([B,T,60], mask)` | synthetic pose/shape/mask tests; later data-row alignment and simulator-controller contract smoke | No for pure tests; yes for data/controller verification |
 | 2 | Baseline forward path | New `models/baseline.py`, `data/collate.py`; thin composition around vendor-compatible XR-1 APIs | adapted Qwen tensors, state `[B,1,60]` → action chunk `[B,30,60]` → R1Pro `[B,K,23]` | mock VLM/DiT CPU shape test; never initialize Qwen locally | Yes for real model |
 | 3 | 100 task ID plumbing | New `data/tasks.py`, generated small `configs/tasks.json`; update collate/schema | canonical string ID / dataset task index → stable `[B]` integer ID and language text | validate uniqueness/cardinality=100 and mapping round-trip against pinned `task_data.json` | No; dataset mapping confirmation needs data host |
 | 4 | Hybrid language-task conditioning | New `models/task_conditioning.py`; minimal hook in future XR-1 compatibility wrapper; config fields | VLM language/vision representation `[B,S,H_vlm]` + task IDs `[B]` → fused conditioning/cache-compatible representation; DiT width 1024 where projected | tiny configurable-dimension module test; checkpoint key compatibility test | Yes for XR-1 integration |
@@ -19,10 +19,23 @@ hidden width. BEHAVIOR dimensions below refer only to the bundled R1Pro config.
 
 ## Immediate next implementation slice
 
-Strategy B is currently **BLOCKED**, not accepted: no local 2026 metadata/data
-or OmniGibson runtime existed for this verification pass. Start next on the
-A100/data host with metadata-only inspection, then a no-rollout R1Pro
-controller smoke test. Accept arm IK (`pose_delta_ori`) only if both the
-demo-target reconstruction and runtime controller contracts verify. Do not
-choose silent truncation, padding, or arbitrary slicing to resolve semantic
-mismatches.
+Strategy B is currently **BLOCKED**, not accepted. The next implementation
+slice is metadata-only verification on the A100/data host: confirm actual
+LeRobot time alignment and gripper representation, then perform the no-rollout
+R1Pro controller smoke. Only after this should normalization be fitted and a
+runtime adapter be designed. Do not choose silent truncation, padding, or
+arbitrary slicing to resolve semantic mismatches.
+
+## A100 validation order
+
+1. `python scripts/inspect_behavior_metadata.py --dataset-root DATASET_ROOT`
+   to record schema, fps, feature metadata, and available stats without
+   opening episodes or video.
+2. `python scripts/inspect_behavior_episode.py --dataset-root DATASET_ROOT
+   --task TASK --episode EPISODE --num-rows 5` to verify 61D state/23D action,
+   time alignment, and both gripper pairs from parquet only.
+3. In the pinned OmniGibson environment, run `python scripts/smoke_r1pro_ik.py
+   --headless` to load only R1Pro and print controller ordering/dimensions and
+   EEF links. It performs no reset, task rollout, dataset access, or video IO.
+4. Only after steps 1--3, compute `BehaviorNormStats`, apply the documented
+   post-load zero initialization, and run the separate full-model validation.

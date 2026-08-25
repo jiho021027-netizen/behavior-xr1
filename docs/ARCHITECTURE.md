@@ -299,3 +299,191 @@ documented source-compatible baseline, not as a conversion implementation.
    23-action arrays and their units; do not fetch the full dataset.
 4. Instantiate R1Pro only on the A100 simulator host to assert `robot.action_dim`
    and actual flattened websocket keys against these static findings.
+
+## BEHAVIOR-Specific XR-1 60D Packing
+
+This is a provisional, training-side representation implemented in
+`behavior_xr1`. It does not change either upstream repository and it is not a
+runtime XR-1-to-OmniGibson controller adapter.
+
+### Why Reserved Dimensions Are Reused
+
+**PARTIAL acceptance.** In `xr1/mibot/utils/io.py`, `compose_action()` creates
+a 60D zero vector and writes only `ACTION_PARTS`; `build_action_mask()` makes
+only those listed parts valid. `compose_state()` likewise writes a 60D zero
+vector, filling only arm and gripper values. Conversely,
+`xr1/mibot/models/VLA/XR1.py::_build_model()` constructs 60-wide state/action
+projectors and a 60-wide action output; `dit_forward()` accepts the action mask
+and `compute_flow_loss()` indexes masked dimensions. Therefore `20:60` is not
+architecturally hard-coded to zero and an arbitrary boolean dimension mask can
+reach the flow loss.
+
+The dimensions were nevertheless zero/masked throughout the released XR-1
+data pipeline, so their pretrained weights/statistics have no established
+BEHAVIOR semantics. Reuse is architecture-compatible, but training-scale
+normalization and effectiveness remain unverified.
+
+### State Packing
+
+`adapters/state.py::BehaviorStatePacker` accepts `[...,61]` following
+`PROPRIOCEPTION_INDICES["R1Pro"]` and emits `[...,60]`:
+
+| Output slice | Source slice | Status |
+|---|---|---|
+| `0:7` | left arm qpos `3:10` | source-backed |
+| `7:8` | caller supplied scalar from left gripper qpos `24:26` | explicit callback required |
+| `8:15` | right arm qpos `28:35` | source-backed |
+| `15:16` | caller supplied scalar from right gripper qpos `49:51` | explicit callback required |
+| `16:20` | trunk qpos `53:57` | source-backed four-value storage; joint identities unavailable |
+| `20:23` | robot-local base qvel `0:3` | source-backed |
+| `23:60` | zero | intentionally reserved |
+
+No gripper reducer means `NotImplementedError`; no average/finger selection is
+invented. This preserves the native XR-1 arm/gripper prefix while using its
+previously zero state tail for R1Pro trunk/base information.
+
+### Action Packing
+
+`data/target_builder.py::build_xr1_action_target` forms one provisional 60D
+target from current/future 61D proprio rows. EEF positions and xyzw
+quaternions are robot-base-relative: `Robot._get_proprioception_dict()` calls
+`get_relative_eef_pose()`, which uses `relative_pose_transform(eef, base)`.
+The pose math exactly uses XR-1 `JsonDataset._arm_action()`:
+`R_t.T @ (p_future-p_t)` and `axis_angle(R_t.T @ R_future)`.
+
+| Output slice | Value | Valid now? |
+|---|---|---|
+| `0:3`, `3:6` | left local EEF translation, axis-angle | yes |
+| `6:7`, `7:8` | left gripper / reserved | no |
+| `8:11`, `11:14` | right local EEF translation, axis-angle | yes |
+| `14:16` | right gripper / reserved | no |
+| `16:17` | XR-1 waist | no: R1Pro trunk is 4D, no collapse |
+| `17:20` | future-row R1Pro local base qvel | source-backed temporal convention; dataset alignment pending |
+| `20:24` | future-current trunk qpos delta | yes as a numerical target; physical joint semantics pending |
+| `24:60` | reserved | no |
+
+### Training Target Reconstruction and Validity Mask
+
+`behavior_action_mask()` enables only `0:6`, `8:14`, and `17:24`; its gripper,
+waist, and all remaining reserved dimensions are false. `PackedAction` carries
+the values and mask together, so unavailable semantics cannot silently become
+zero-valued loss targets. A future XR-1 compatibility wrapper should pass this
+mask to the existing `XR1.dit_forward()` / `compute_flow_loss()` action-mask
+path; upstream code is unchanged in this milestone.
+
+### Runtime Adapter Still Blocked
+
+No `XR1ActionToBehaviorAction` logic has been added. The live IK controller,
+XR-1 base frame/unit, gripper conversion, and 1D-waist-to-4D-trunk mapping are
+still unverified. In particular, this training target does not authorize
+zero-padding, broadcasting, or issuing a 21D OmniGibson action.
+
+## Pretrained-Safe BEHAVIOR Dimension Extension
+
+### Problem with Previously-Zero Dimensions
+
+At Xiaomi-Robotics-1 commit `556cca33963a2b36d835a40374c3b4c8eef68401`,
+`xr1/mibot/utils/io.py::compose_state` only writes state `0:16`; state `16:60`
+is zero. `XR1.py::Projector._init_weights` randomly initializes every linear
+weight, so a checkpoint column connected only to a zero feature receives no
+data-driven update. Activating such a column later changes the condition by
+an uncontrolled pretrained-random term.
+
+The action case is narrower: `utils/io.py::ACTION_PARTS` includes base `17:20`,
+so this project must preserve that pretrained action region. This contract
+only treats trunk-action `20:24` as new. Whether any released checkpoint
+actually trained each supported action part remains checkpoint/data dependent.
+
+### State Extension
+
+The proposed state tail is trunk qpos `16:20` and robot-local base qvel
+`20:23`; see `BehaviorStatePacker`. They are passed only after obtaining
+dataset-fitted state quantiles. The opt-in `r1pro_gripper_width_sum` uses the
+2025 winner's two-finger sum, but remains non-default until 2026 rows verify
+the pair relation.
+
+### Action Extension
+
+The 60D target keeps native EEF regions and the established base `17:20`.
+Four trunk qpos finite differences occupy `20:24` with their own validity
+mask. They are not a live controller mapping: trunk joint identity/order,
+episode alignment, and controller acceptance remain A100 checks.
+
+### Initialization Strategy
+
+**Recommended: targeted zero initialization (Strategy 2).** Immediately after
+strict checkpoint loading and before optimizer construction, zero only:
+
+```python
+# PyTorch Linear weight convention is [out_features, in_features].
+with torch.no_grad():
+    model.state_projector.layers[0].weight[:, 16:23] = 0
+    model.state_projector_choice.layers[0].weight[:, 16:23] = 0
+    model.action_projector.layers[0].weight[:, 20:24] = 0
+    model.action_output_layer.layers[2].weight[20:24, :] = 0
+    for choice in range(5):
+        model.action_projector_choice[1].layers[0].weight[choice * 60 + 20:choice * 60 + 24, :] = 0
+```
+
+These are exact names from `XR1.py::_build_model` and `Projector`: each first
+projector linear is `layers.0`; the two-layer action output's final linear is
+`layers.2`. Their default `bias=False`, so no corresponding bias exists. The
+choice path is included because it consumes state during training and predicts
+five flattened 60D alternatives. The NumPy-only shape-checked mirror is
+`models/initialization.py::zero_new_behavior_parameters`.
+
+| Exact `named_parameters()` name | Shape from source | BEHAVIOR operation |
+|---|---:|---|
+| `state_projector.layers.0.weight` | `[1024, 60]` | zero input columns `16:23` |
+| `state_projector_choice.layers.0.weight` | `[vlm.config.text_config.hidden_size, 60]` | zero input columns `16:23` |
+| `action_projector.layers.0.weight` | `[1024, 60]` | zero input columns `20:24` |
+| `action_output_layer.layers.2.weight` | `[60, 1024]` | zero output rows `20:24` |
+| `action_projector_choice.1.layers.0.weight` | `[300, vlm.config.text_config.hidden_size]` | zero rows `60*c + 20:60*c + 24`, `c=0..4` |
+
+There are no biases for these five `Projector` instances: `Projector` defaults
+to `bias=False`. The VLM hidden width is loaded from the external Qwen config,
+so source alone does not establish a numeric value without loading that model.
+
+Strategy 1 is simplest but violates preservation by immediately admitting
+untrained columns. A zero-init residual adapter (Strategy 3) is also
+preserving and parameter-efficient, but adds checkpoint keys, an integration
+site, and an ablation dimension before the minimal extension has been tested.
+Strategy 2 preserves the native path exactly at initialization, retains strict
+checkpoint compatibility, and learns only from masked BEHAVIOR losses; use an
+adapter only if its ablation materially improves this baseline.
+
+### Normalization Strategy
+
+XR-1 `JsonDataset.__getitem__` first builds raw parts, normalizes actions with
+per-step `mean[H,60]`/`std[H,60]`, quantile-normalizes state using
+`q01[1,60]`/`q99[1,60]`, then builds the action mask. In `XR1.dit_forward`,
+the mask is applied before the action projector; `compute_flow_loss` indexes
+only masked values. Thus new dimensions require real-data statistics before
+they become valid. Identity normalization is acceptable only as an explicit
+temporary inactive schema (`mean=0`, `std=1`, invalid mask); it is not a
+training substitute.
+
+The A100 dataset job must emit `BehaviorNormStats`: `state_q01[1,60]`,
+`state_q99[1,60]`, `action_mean[H,60]`, `action_std[H,60]`, and
+`action_valid_mask[H,60]`. Populate native dimensions with the selected
+checkpoint-compatible stats; calculate the new state/action slices from the
+confirmed BEHAVIOR transform and horizon alignment. No values are fabricated
+locally.
+
+### 2025 Winner Reference
+
+At `behavior-1k-solution-2025` commit
+`ca556f74a455cef7987a2be4537b5ac85cc56dd7`,
+`b1k_policy.py::extract_state_from_proprio` emits 23D
+`[base(3), trunk(4), left-arm(7), left-width(1), right-arm(7), right-width(1)]`.
+Each width is `sum(two finger qpos)` mapped from `[0,0.1]` to `[-1,1]`.
+`DataConfigFactory.create` uses `DeltaActions` with boolean mask
+`make_bool_mask(-3,3,-1,7,-1,7,-1)`, passed verbatim to OpenPI's
+`DeltaActions`; its implementation is an external dependency and is not
+vendored in the winner checkout, so this document does not assign unverified
+per-coordinate delta/absolute meaning beyond the source mask. The winner's
+statistics/tokenizer scripts do establish that every horizon action is
+transformed relative to the one current state. `PadStatesAndActions(32)` pads
+their 23D state/actions to the model's 32D space, and `B1kOutputs` truncates
+inference back to 23D. This is a representation reference, not evidence that
+2026 dataset semantics or an XR-1 checkpoint are identical.
