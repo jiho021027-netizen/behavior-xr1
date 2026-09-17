@@ -1,1 +1,2 @@
-"""BEHAVIOR policy-server integration (simulator host only)."""
+from .policy_server import DummyPolicy
+__all__=['DummyPolicy']
