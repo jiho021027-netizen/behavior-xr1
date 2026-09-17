@@ -16,7 +16,7 @@ class XR1EEFActionAdapter:
   put('base',a[...,17:20] if base is None else base)
   if trunk is None: raise ValueError('fixed-trunk mode requires current 4D trunk target')
   put('trunk',trunk)
-  put('arm_left',eef_local_to_base(a[...,0:3],rotation_left)); put('arm_right',eef_local_to_base(a[...,8:11],rotation_right))
+  put('arm_left',np.concatenate([eef_local_to_base(a[...,0:3],rotation_left), a[...,3:6]],axis=-1)); put('arm_right',np.concatenate([eef_local_to_base(a[...,8:11],rotation_right), a[...,11:14]],axis=-1))
   if gripper is None: raise ValueError('explicit gripper hold/current command required')
   put('gripper_left',gripper[...,0:1]); put('gripper_right',gripper[...,1:2])
   if not np.isfinite(out).all(): raise ValueError('non-finite action')
