@@ -37,13 +37,17 @@ controller_config:
     name: InverseKinematicsController
     mode: pose_delta_ori
     command_input_limits: default
-    command_output_limits: default
+    command_output_limits:
+    - [-0.2, -0.2, -0.2, -0.5, -0.5, -0.5]
+    - [0.2, 0.2, 0.2, 0.5, 0.5, 0.5]
     use_impedances: false
   arm_right:
     name: InverseKinematicsController
     mode: pose_delta_ori
     command_input_limits: default
-    command_output_limits: default
+    command_output_limits:
+    - [-0.2, -0.2, -0.2, -0.5, -0.5, -0.5]
+    - [0.2, 0.2, 0.2, 0.5, 0.5, 0.5]
     use_impedances: false
   gripper_left:
     name: MultiFingerGripperController
