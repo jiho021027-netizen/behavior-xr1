@@ -8,3 +8,6 @@ from .observation import CanonicalObservation, RuntimeObservationAdapter
 __all__ += ['CanonicalObservation', 'RuntimeObservationAdapter']
 from .frame_transform import eef_local_to_base
 __all__ += ['eef_local_to_base']
+from .r1pro_action_schema import ControllerSlice, build_controller_slices
+from .action_bridge import XR1EEFActionAdapter
+__all__ += ['ControllerSlice','build_controller_slices','XR1EEFActionAdapter']
