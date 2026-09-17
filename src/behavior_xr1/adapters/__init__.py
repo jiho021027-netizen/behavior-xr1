@@ -6,3 +6,5 @@ from .state import r1pro_gripper_width_sum
 __all__ = ["BehaviorObservationAdapter", "BehaviorStatePacker", "XR1ActionToBehaviorAction", "r1pro_gripper_width_sum"]
 from .observation import CanonicalObservation, RuntimeObservationAdapter
 __all__ += ['CanonicalObservation', 'RuntimeObservationAdapter']
+from .frame_transform import eef_local_to_base
+__all__ += ['eef_local_to_base']
