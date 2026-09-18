@@ -48,8 +48,6 @@ class BehaviorStatePacker:
         packed = np.zeros((flat.shape[0], XR1_STATE_DIM), dtype=np.float32)
         packed[:, 0:7] = flat[:, 3:10]
         packed[:, 8:15] = flat[:, 28:35]
-        packed[:, 16:20] = flat[:, 53:57]
-        packed[:, 20:23] = flat[:, 0:3]
         for index, row in enumerate(flat):
             packed[index, 7] = self._coerce_scalar(self._gripper_scalar(row[24:26]), "left")
             packed[index, 15] = self._coerce_scalar(self._gripper_scalar(row[49:51]), "right")

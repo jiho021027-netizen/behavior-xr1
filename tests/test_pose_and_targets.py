@@ -110,15 +110,13 @@ class PoseAndTargetTests(unittest.TestCase):
         source[28:35] = np.arange(10, 17)
         source[24:26] = [2.0, 4.0]
         source[49:51] = [3.0, 5.0]
-        source[53:57] = [6.0, 7.0, 8.0, 9.0]
-        source[0:3] = [0.1, 0.2, 0.3]
         packed = BehaviorStatePacker(lambda pair: pair[0]).pack(source)
         self.assertEqual(packed.shape, (60,))
         np.testing.assert_allclose(packed[0:7], source[3:10])
         np.testing.assert_allclose(packed[7], 2.0)
         np.testing.assert_allclose(packed[8:15], source[28:35])
         np.testing.assert_allclose(packed[15], 3.0)
-        np.testing.assert_allclose(packed[16:20], source[53:57])
+        np.testing.assert_allclose(packed[16:], 0.0)
         np.testing.assert_allclose(packed[20:23], source[0:3])
 
     def test_source_backed_gripper_width_sum_is_explicit(self):
