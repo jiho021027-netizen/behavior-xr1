@@ -3,13 +3,15 @@ import numpy as np
 from .frame_transform import eef_local_to_base
 class XR1EEFActionAdapter:
  """Strict XR-1 EEF action to validated 21D IK vector; trunk is explicit hold."""
- def __init__(self, slices, *, fixed_trunk=True):
-  self.slices=tuple(slices); self.fixed_trunk=fixed_trunk
+ def __init__(self, slices, *, fixed_trunk=True, neutral_unvalidated=True):
+  self.slices=tuple(slices); self.fixed_trunk=fixed_trunk; self.neutral_unvalidated=neutral_unvalidated
   if not fixed_trunk: raise ValueError('semantic XR-1 waist→R1Pro trunk mapping is unavailable')
   if sum(s.command_dim for s in self.slices)!=21: raise ValueError('expected runtime 21D controller schema')
  def convert(self, action, rotation_left, rotation_right, *, base=None, trunk=None, gripper=None):
   a=np.asarray(action,dtype=np.float32)
   if a.shape[-1]!=60: raise ValueError('XR-1 action must end in 60')
+  if self.neutral_unvalidated and not np.array_equal(a[...,17:20],np.zeros_like(a[...,17:20])): raise ValueError('UNVALIDATED_BASE_NONZERO')
+  if self.neutral_unvalidated and (not np.array_equal(a[...,6:7],np.zeros_like(a[...,6:7])) or not np.array_equal(a[...,14:15],np.zeros_like(a[...,14:15]))): raise ValueError('UNVALIDATED_GRIPPER_NONZERO')
   out=np.zeros(a.shape[:-1]+(21,),np.float32)
   by={s.name:s for s in self.slices}
   def put(name,v): out[...,by[name].start:by[name].stop]=v
