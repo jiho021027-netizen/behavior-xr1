@@ -1,0 +1,21 @@
+{
+  "status": "partial",
+  "source_contracts": {
+    "r1pro_base": "HolonomicBaseJointController velocity [x,y,rz] base frame",
+    "r1pro_trunk": "JointController absolute position targets for 4 torso joints [6,7,8,9]",
+    "r1pro_gripper": "MultiFingerGripperController smooth scalar target broadcast to 2 fingers",
+    "r1pro_arm": "InverseKinematicsController 6D base-frame command"
+  },
+  "xr1_to_r1pro": {
+    "arm": "frame transform available but fresh numeric pose capture pending",
+    "base": "candidate identity, XR1 source unit/frame evidence incomplete",
+    "trunk": "no source-defined XR1 scalar-to-four-joint manifold found",
+    "gripper": "XR1 delta-to-R1Pro absolute target requires source endpoint/calibration unavailable"
+  },
+  "mapping_valid": false,
+  "env_step_executed": false,
+  "base_mapping_valid": false,
+  "trunk_mapping_valid": false,
+  "gripper_mapping_valid": false,
+  "full_real_xr1_behavior_step_validated": false
+}

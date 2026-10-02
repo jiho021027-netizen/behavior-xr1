@@ -19,3 +19,13 @@ def test_neutral_guard_rejects_unvalidated_base_and_grippers():
  with pytest.raises(ValueError,match='UNVALIDATED_BASE_NONZERO'): b.convert(x,**kw)
  x=np.zeros(60); x[6]=1
  with pytest.raises(ValueError,match='UNVALIDATED_GRIPPER_NONZERO'): b.convert(x,**kw)
+
+def test_distinct_eef_rotation_matrices_are_used_for_both_arms():
+ import numpy as np
+ from behavior_xr1.adapters.r1pro_action_schema import build_controller_slices
+ from behavior_xr1.adapters.action_bridge import XR1EEFActionAdapter
+ s=build_controller_slices(['base','trunk','arm_left','gripper_left','arm_right','gripper_right'],[3,4,6,1,6,1],21)
+ b=XR1EEFActionAdapter(s); a=np.zeros(60); a[3:6]=[.01,0,0]; a[11:14]=[.01,0,0]
+ Rl=np.eye(3); Rr=np.array([[0,-1,0],[1,0,0],[0,0,1.]])
+ out=b.convert(a,Rl,np.eye(3),rotation_right_eef=Rr,trunk=np.zeros(4),gripper=np.zeros(2))
+ np.testing.assert_allclose(out[10:13],[.01,0,0]); np.testing.assert_allclose(out[17:20],[0,.01,0])

@@ -1,0 +1,8 @@
+--- a/xr1/mibot/server/runtime/client.py
++++ b/xr1/mibot/server/runtime/client.py
+@@
+-        if action.shape != (30, 60):
+-            raise ValueError(f"expected server output shape (30, 60), got {action.shape}")
++        if action.ndim != 2 or action.shape[1] != 60 or action.shape[0] <= 0:
++            raise ValueError(f"expected server output shape (H, 60) with H>0, got {action.shape}")
+***

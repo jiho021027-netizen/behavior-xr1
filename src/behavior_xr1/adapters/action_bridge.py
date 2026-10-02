@@ -1,6 +1,6 @@
 from __future__ import annotations
 import numpy as np
-from .frame_transform import eef_local_to_base
+from .frame_transform import eef_local_to_base, eef_local_rotation_to_base
 class XR1EEFActionAdapter:
  """XR-1 EEF action adapter. Rotations are active world-frame matrices:
  R_world_from_eef and R_world_from_base; local translation uses
@@ -10,7 +10,7 @@ class XR1EEFActionAdapter:
   self.slices=tuple(slices); self.fixed_trunk=fixed_trunk; self.neutral_unvalidated=neutral_unvalidated
   if not fixed_trunk: raise ValueError('semantic XR-1 waist→R1Pro trunk mapping is unavailable')
   if sum(s.command_dim for s in self.slices)!=21: raise ValueError('expected runtime 21D controller schema')
- def convert(self, action, rotation_left, rotation_right, *, base=None, trunk=None, gripper=None):
+ def convert(self, action, rotation_left, rotation_right, *, rotation_right_eef=None, base=None, trunk=None, gripper=None):
   a=np.asarray(action,dtype=np.float32)
   if a.shape[-1]!=60: raise ValueError('XR-1 action must end in 60')
   if self.neutral_unvalidated and not np.array_equal(a[...,17:20],np.zeros_like(a[...,17:20])): raise ValueError('UNVALIDATED_BASE_NONZERO')
@@ -24,7 +24,9 @@ class XR1EEFActionAdapter:
   R_world_from_eef=np.asarray(rotation_left,dtype=np.float32)
   R_world_from_base=np.asarray(rotation_right,dtype=np.float32)
   R_base_from_eef=np.matmul(np.swapaxes(R_world_from_base,-1,-2),R_world_from_eef)
-  put('arm_left',np.concatenate([eef_local_to_base(a[...,0:3],R_base_from_eef), a[...,3:6]],axis=-1)); put('arm_right',np.concatenate([eef_local_to_base(a[...,8:11],rotation_right), a[...,11:14]],axis=-1))
+  put('arm_left',np.concatenate([eef_local_to_base(a[...,0:3],R_base_from_eef), eef_local_rotation_to_base(a[...,3:6],R_base_from_eef)],axis=-1)); R_world_from_right_eef = R_world_from_eef if rotation_right_eef is None else np.asarray(rotation_right_eef,dtype=np.float32)
+  R_base_from_right_eef=np.matmul(np.swapaxes(R_world_from_base,-1,-2),R_world_from_right_eef)
+  put('arm_right',np.concatenate([eef_local_to_base(a[...,8:11],R_base_from_right_eef), eef_local_rotation_to_base(a[...,11:14],R_base_from_right_eef)],axis=-1))
   if gripper is None: raise ValueError('explicit gripper hold/current command required')
   put('gripper_left',gripper[...,0:1]); put('gripper_right',gripper[...,1:2])
   if not np.isfinite(out).all(): raise ValueError('non-finite action')

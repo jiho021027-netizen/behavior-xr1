@@ -1,0 +1,24 @@
+{
+  "profile": "ADAPTATION_PROFILE_V1",
+  "source_contracts": {
+    "xr1_state": "Xiaomi-Robotics-1/xr1/mibot/utils/io.py:compose_state",
+    "xr1_history": "Xiaomi-Robotics-1/eval_robocasa365/entry.py:sample_history",
+    "xr1_robot_type": "Xiaomi-Robotics-1/eval_robocasa365/entry.py:ROBOT_TYPE",
+    "xr1_processor": "checkpoints/Xiaomi-Robotics-1-RoboCasa365/processing_mibot.py"
+  },
+  "adaptation_assumptions": {
+    "arm": "R1Pro seven-joint chain order is mapped by chain position to XR1 seven-joint slots; raw radians retained",
+    "gripper": "scalar = physical two-finger aperture q1+q2, endpoint-calibrated to XR1 scalar contract",
+    "camera": "ego=head/zed, wrist_left=left_realsense, wrist_right=right_realsense by physical role",
+    "history": "oldest_to_newest, length 4, stride 2, repeat-first padding"
+  },
+  "robot_type": "robocasa365",
+  "task_id": null,
+  "status": "partial",
+  "forward": {
+    "attempted": false,
+    "reason": "instance 301 observation capture terminated RC139 before artifact creation"
+  },
+  "full_real_xr1_behavior_step_validated": false,
+  "task_success_validated": false
+}
