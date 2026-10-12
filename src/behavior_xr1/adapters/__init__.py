@@ -13,3 +13,6 @@ from .action_bridge import XR1EEFActionAdapter
 __all__ += ['ControllerSlice','build_controller_slices','XR1EEFActionAdapter']
 from .hold_action import build_hold_action
 __all__ += ['build_hold_action']
+
+from .robocasa365_action_schema import RoboCasa365ActionSchema, XR1_ROBOCASA365_ACTION_SCHEMA
+__all__ += ['RoboCasa365ActionSchema', 'XR1_ROBOCASA365_ACTION_SCHEMA']

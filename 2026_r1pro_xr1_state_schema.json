@@ -1,0 +1,270 @@
+{
+  "schema_version": "2026-r1pro-xr1-state-v2",
+  "raw_observation": {
+    "key": ".robot_r1::proprio",
+    "shape": [
+      61
+    ],
+    "dtype": "float32"
+  },
+  "xr1_destination": {
+    "shape": [
+      60
+    ],
+    "dtype": "float32",
+    "reserved_indices": [
+      16,
+      17,
+      18,
+      19,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35,
+      36,
+      37,
+      38,
+      39,
+      40,
+      41,
+      42,
+      43,
+      44,
+      45,
+      46,
+      47,
+      48,
+      49,
+      50,
+      51,
+      52,
+      53,
+      54,
+      55,
+      56,
+      57,
+      58,
+      59
+    ]
+  },
+  "components": [
+    {
+      "name": "base_qvel",
+      "source_indices": [
+        0,
+        3
+      ],
+      "destination_indices": [],
+      "dimension": 3,
+      "units": "unknown",
+      "status": "VERIFIED_ORDER_UNRESOLVED_DESTINATION"
+    },
+    {
+      "name": "left_arm_qpos",
+      "source_indices": [
+        3,
+        10
+      ],
+      "destination_indices": [
+        0,
+        7
+      ],
+      "dimension": 7,
+      "units": "joint_position_units",
+      "status": "VERIFIED"
+    },
+    {
+      "name": "left_arm_qvel",
+      "source_indices": [
+        10,
+        17
+      ],
+      "destination_indices": [],
+      "dimension": 7,
+      "units": "joint_velocity_units",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "left_eef_pos",
+      "source_indices": [
+        17,
+        20
+      ],
+      "destination_indices": [],
+      "dimension": 3,
+      "units": "meters",
+      "frame": "articulation_root",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "left_eef_quat",
+      "source_indices": [
+        20,
+        24
+      ],
+      "destination_indices": [],
+      "dimension": 4,
+      "units": "unit_quaternion",
+      "frame": "articulation_root",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "left_gripper_qpos",
+      "source_indices": [
+        24,
+        26
+      ],
+      "destination_indices": [
+        7
+      ],
+      "dimension": 2,
+      "units": "unknown",
+      "transformation": "mean of qpos pair",
+      "status": "TRANSFORMATION_PARTIAL"
+    },
+    {
+      "name": "left_gripper_qvel",
+      "source_indices": [
+        26,
+        28
+      ],
+      "destination_indices": [],
+      "dimension": 2,
+      "units": "unknown",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "right_arm_qpos",
+      "source_indices": [
+        28,
+        35
+      ],
+      "destination_indices": [
+        8,
+        15
+      ],
+      "dimension": 7,
+      "units": "joint_position_units",
+      "status": "VERIFIED"
+    },
+    {
+      "name": "right_arm_qvel",
+      "source_indices": [
+        35,
+        42
+      ],
+      "destination_indices": [],
+      "dimension": 7,
+      "units": "joint_velocity_units",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "right_eef_pos",
+      "source_indices": [
+        42,
+        45
+      ],
+      "destination_indices": [],
+      "dimension": 3,
+      "units": "meters",
+      "frame": "articulation_root",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "right_eef_quat",
+      "source_indices": [
+        45,
+        49
+      ],
+      "destination_indices": [],
+      "dimension": 4,
+      "units": "unit_quaternion",
+      "frame": "articulation_root",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "right_gripper_qpos",
+      "source_indices": [
+        49,
+        51
+      ],
+      "destination_indices": [
+        15
+      ],
+      "dimension": 2,
+      "units": "unknown",
+      "transformation": "mean of qpos pair",
+      "status": "TRANSFORMATION_PARTIAL"
+    },
+    {
+      "name": "right_gripper_qvel",
+      "source_indices": [
+        51,
+        53
+      ],
+      "destination_indices": [],
+      "dimension": 2,
+      "units": "unknown",
+      "status": "VERIFIED_SOURCE_ONLY"
+    },
+    {
+      "name": "trunk_qpos",
+      "source_indices": [
+        53,
+        57
+      ],
+      "destination_indices": [
+        20,
+        24
+      ],
+      "dimension": 4,
+      "units": "joint_position_units",
+      "status": "VERIFIED"
+    },
+    {
+      "name": "trunk_qvel",
+      "source_indices": [
+        57,
+        61
+      ],
+      "destination_indices": [],
+      "dimension": 4,
+      "units": "joint_velocity_units",
+      "status": "VERIFIED_SOURCE_ONLY"
+    }
+  ],
+  "evidence": [
+    "configs/eval/r1pro_xr1_ik.yaml:13-28",
+    "external/OmniGibson/omnigibson/robots/robot.py:1571-1601",
+    "src/behavior_xr1/data/r1pro_2026_state.py:8-28"
+  ],
+  "train_eval_contract": "PENDING_TEAM_VERIFICATION",
+  "source_observation_fixture": "artifacts/2026_state_validation/task0_reset_observation.npz",
+  "raw_observation_verified": true,
+  "adapter_validation": {
+    "raw_shape": [
+      61
+    ],
+    "xr1_shape": [
+      60
+    ],
+    "finite": true,
+    "direct_component_max_abs_diff": {
+      "left_arm": 0.0,
+      "right_arm": 0.0,
+      "trunk": 0.0,
+      "left_gripper_mean": 0.0,
+      "right_gripper_mean": 0.0
+    },
+    "reserved_zero": true
+  },
+  "gripper_status": "PARTIAL: pairwise mean numerically verified against adapter, but authoritative physical range/direction metadata remains unavailable"
+}
