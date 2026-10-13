@@ -1,0 +1,4 @@
+CPU synthetic tests: 5 passed (unittest, 2026-10-13).
+Real 2026 dataset/parquet execution: NOT_EXECUTED.
+Final production normalization: NOT_COMPUTED.
+A100 training: NOT_EXECUTED.
