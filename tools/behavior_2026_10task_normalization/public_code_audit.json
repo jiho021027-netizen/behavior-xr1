@@ -1,0 +1,53 @@
+{
+  "status": "IMPLEMENTED_NOT_RUN_ON_REAL_2026_DATA",
+  "repository": "jiho021027-netizen/behavior-xr1",
+  "branch": "spark2-runtime-integration",
+  "commit": "b7d8ce0db42b7bf5e461a2829669002e137c6321",
+  "task_ids": [
+    0,
+    69,
+    60,
+    57,
+    56,
+    62,
+    59,
+    6,
+    8,
+    10
+  ],
+  "findings": [
+    {
+      "file": "src/behavior_xr1/data/target_builder.py",
+      "symbol": "behavior_action_mask/build_xr1_action_target",
+      "finding": "gripper 6/14 are masked; base 17:20 enabled; trunk 20:24 is finite difference. Does not match supplied handoff active18/trunk absolute contract."
+    },
+    {
+      "file": "src/behavior_xr1/data/behavior_r1pro.py",
+      "symbol": "convert_native_episode",
+      "finding": "requires (N,256); imports r1pro_tiny_dataset not present in this branch tree. Cannot use on 2026 state61."
+    },
+    {
+      "file": "src/behavior_xr1/adapters/action_bridge.py",
+      "symbol": "XR1EEFActionAdapter",
+      "finding": "fixed-trunk mode with explicit gripper hold; differs from newer team document. Obtain actual evaluator bridge commit before production."
+    },
+    {
+      "file": "src/behavior_xr1/training/official_normalization.py",
+      "symbol": "compute_statistics",
+      "finding": "complete unmasked windows only. New tool provides per-horizon valid masks including episode tails; consumer parity evidence required."
+    },
+    {
+      "file": "src/behavior_xr1/evaluation/run_zero_shot.py",
+      "symbol": "load_normalization",
+      "finding": "flat state_q01/state_q99/action_mean/action_std fields expected. Structure checks alone do not verify production readiness."
+    }
+  ],
+  "real_dataset_access": false,
+  "actual_normalization_computed": false,
+  "a100_training_executed": false,
+  "verification": {
+    "cpu_synthetic_unittest": "5 passed",
+    "compileall": "passed",
+    "parquet_export_real_runtime": "NOT_EXECUTED"
+  }
+}

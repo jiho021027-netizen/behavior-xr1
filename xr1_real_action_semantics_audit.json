@@ -1,0 +1,68 @@
+{
+  "schema_source": "Xiaomi-Robotics-1/xr1/mibot/utils/io.py ACTION_PARTS and recover_action; xr1/mibot/server/runtime/server.py denormalize_action; runtime/client.py",
+  "schema_complete": true,
+  "action_parts": {
+    "left_ee_pos": [
+      0,
+      3
+    ],
+    "left_ee_aa": [
+      3,
+      6
+    ],
+    "left_gripper": [
+      6,
+      7
+    ],
+    "right_ee_pos": [
+      8,
+      11
+    ],
+    "right_ee_aa": [
+      11,
+      14
+    ],
+    "right_gripper": [
+      14,
+      15
+    ],
+    "waist": [
+      16,
+      17
+    ],
+    "base": [
+      17,
+      20
+    ],
+    "reserved": [
+      20,
+      60
+    ]
+  },
+  "action_semantics": "EE position and axis-angle deltas; gripper and waist deltas; base velocity; denormalized by server mean/std",
+  "saved_action_physical": true,
+  "denormalization": "action * (std + ACTION_EPS) + mean",
+  "chunk_horizon": 16,
+  "canonical_execution": "checkpoint emits (16,60); external client dynamic (H,60) patch documented separately",
+  "left_frame": "local EEF frame; recover_action applies local delta @ ee_rotm.T",
+  "right_frame": "local EEF frame; same source path",
+  "base_mapping_valid": false,
+  "trunk_mapping_valid": false,
+  "gripper_action_mapping_valid": false,
+  "full_semantics_valid": false,
+  "safe_full_action_execution": false,
+  "env_step_executed": false,
+  "blockers": [
+    "R1Pro base command semantics/units are not source-reconciled with XR1 base velocity.",
+    "R1Pro 4D trunk controller interface vs XR1 waist scalar is not reconciled.",
+    "XR1 gripper delta semantics and BEHAVIOR gripper controller contract are not reconciled.",
+    "Canonical runtime client asserts 30-step output while checkpoint processor/model output is 16-step."
+  ],
+  "left_rotation_frame_valid": true,
+  "right_rotation_frame_valid": true,
+  "arm_rotation_frame_valid": true,
+  "gripper_mapping_valid": false,
+  "full_real_xr1_behavior_step_validated": false,
+  "action_chunk_compatibility_valid": true,
+  "rotation_conversion": "r_base = R_base_from_eef @ r_local"
+}

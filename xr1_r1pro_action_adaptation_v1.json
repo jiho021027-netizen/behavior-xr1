@@ -1,0 +1,64 @@
+{
+  "status": "partial",
+  "source_contracts": {
+    "r1pro_base": "HolonomicBaseJointController velocity [x,y,rz], robot-local input; linear x/y rotated to canonical by controller",
+    "r1pro_trunk": "JointController absolute position targets for torso_joint1..4",
+    "r1pro_gripper": "MultiFingerGripperController smooth scalar; u in [-1,1], finger targets 0.025*(clip(u)+1) in [0,0.05]",
+    "r1pro_arm": "InverseKinematicsController 6D base-frame command"
+  },
+  "xr1_to_r1pro": {
+    "arm": "frame transform available but fresh numeric pose capture pending",
+    "base": "UNRESOLVED: XR1 source defines action[17:20] packing only; frame/units/execution semantics not found",
+    "trunk": "UNRESOLVED: XR1 waist physical coordinate and reference unavailable; R1Pro JoyLo manifold is not XR1-equivalent",
+    "gripper": "UNRESOLVED: XR1 endpoint/range/sign/units unavailable; delta accumulation proven"
+  },
+  "mapping_valid": false,
+  "env_step_executed": false,
+  "base_mapping_valid": false,
+  "trunk_mapping_valid": false,
+  "gripper_mapping_valid": false,
+  "full_real_xr1_behavior_step_validated": false,
+  "base_audit": "xr1_base_action_mapping_audit.json",
+  "base_source_contract_resolved": false,
+  "base_source_contract_unavailable": true,
+  "base_block_reason": "XR-1 checked-in source proves order/label only; no frame, units, angular semantics, temporal definition, raw converter, or execution consumer",
+  "next_step": "FULL_BODY_BLOCKED_BY_BASE_GRIPPER_TRUNK_SOURCE_CONTRACTS",
+  "base_norm_mean_first_step": [
+    0.0097,
+    0.0002,
+    -0.0
+  ],
+  "base_norm_std_first_step": [
+    0.073,
+    0.0926,
+    0.1218
+  ],
+  "base_norm_min": [
+    0.0097,
+    0.0002,
+    -0.0
+  ],
+  "base_norm_max": [
+    0.0098,
+    0.0002,
+    0.0
+  ],
+  "base_std_min": [
+    0.0722,
+    0.0916,
+    0.1201
+  ],
+  "base_std_max": [
+    0.073,
+    0.0926,
+    0.1218
+  ],
+  "base_denormalization_equation": "physical=normalized*(std+1e-6)+mean",
+  "previous_identity_mapping_was_correct": "UNRESOLVED",
+  "base_roundtrip_physical_velocity_error": "NOT_APPLICABLE_CONTRACT_UNRESOLVED",
+  "xr1_base_dataflow_breakpoint": "raw trajectory -> packed actions.base_vel converter absent",
+  "xr1_base_execution_consumer_found": false,
+  "gripper_source_contract_unavailable": true,
+  "gripper_block_reason": "XR1 source endpoint, range, sign, units, clipping, and execution consumer unavailable",
+  "trunk_source_contract_unavailable": true
+}
